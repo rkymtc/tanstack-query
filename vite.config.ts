@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true, // Tarayıcıyı otomatik açar
+    open: true,
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
   },
 })
