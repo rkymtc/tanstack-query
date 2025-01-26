@@ -29,7 +29,7 @@ A modern, responsive admin panel built with React, TypeScript, and Material-UI. 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/rkymtc/tanstack-query.git
 cd admin-panel
 ```
 
