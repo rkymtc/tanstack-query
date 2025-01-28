@@ -1,201 +1,191 @@
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 import { DataItem, LoginCredentials, User, GridUser } from '../types';
 
 const BASE_URL = 'https://jsonplaceholder.typicode.com';
-const TIMEOUT = 10000;
+const TIMEOUT = 5000;
 
-class ApiService {
-  private api: AxiosInstance;
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(handleError(error))
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      handleUnauthorized();
+    }
+    return Promise.reject(handleError(error));
+  }
+);
+
+const handleError = (error: any): Error => {
+  const message =
+    error.response?.data?.message || error.message || 'An unexpected error occurred';
+  return new Error(message);
+};
+
+const handleUnauthorized = (): void => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+};
+
+export const login = async (credentials: LoginCredentials): Promise<User> => {
+    const user = {
+      username: credentials.username,
+      token: `demo-token-${Date.now()}`
+    };
+    localStorage.setItem('token', user.token);
+    return user;
   
-  constructor() {
-    this.api = axios.create({
-      baseURL: BASE_URL,
-      timeout: TIMEOUT,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  throw new Error('Invalid credentials');
+};
 
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
+export const fetchUsers = async (): Promise<GridUser[]> => {
+  const response = await api.get('/users');
+  return response.data;
+};
+
+export const fetchPosts = async (): Promise<DataItem[]> => {
+  const response = await api.get('/posts');
+  return response.data;
+};
+
+const getStoredData = <T>(key: string): T[] => {
+  const stored = localStorage.getItem(`app_${key}`);
+  return stored ? JSON.parse(stored) : [];
+};
+
+const setStoredData = <T>(key: string, data: T): void => {
+  localStorage.setItem(`app_${key}`, JSON.stringify(data));
+};
+
+export const getPosts = async (): Promise<DataItem[]> => {
+  try {
+    const storedData = getStoredData<DataItem>('posts');
+    if (storedData.length > 0) return storedData;
+
+    // Yoksa API'den çek ve localStorage'a kaydet
+    const { data } = await api.get<DataItem[]>('/posts');
+    const limitedData = data.slice(0, 10);
+    setStoredData('posts', limitedData);
+    return limitedData;
+  } catch (err) {
+    throw handleError(err);
+  }
+};
+
+export const createPost = async (post: Partial<DataItem>): Promise<DataItem> => {
+  try {
+    const { data } = await api.post<DataItem>('/posts', post);
+
+    const storedData = getStoredData<DataItem>('posts');
+    const newId = Math.max(0, ...storedData.map((p) => p.id)) + 1;
+    const newPost: DataItem = { ...data, id: newId };
+
+    setStoredData('posts', [...storedData, newPost]);
+    return newPost;
+  } catch (err) {
+    throw handleError(err);
+  }
+};
+
+export const updatePost = async (post: DataItem): Promise<DataItem> => {
+  try {
+    await api.put(`/posts/${post.id}`, post);
+    const storedData = getStoredData<DataItem>('posts');
+    const updatedData = storedData.map((p) => (p.id === post.id ? post : p));
+    setStoredData('posts', updatedData);
+
+    return post;
+  } catch (err) {
+    throw handleError(err);
+  }
+};
+
+export const deletePost = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/posts/${id}`);
+
+    const storedData = getStoredData<DataItem>('posts');
+    setStoredData(
+      'posts',
+      storedData.filter((p) => p.id !== id)
     );
+  } catch (err) {
+    throw handleError(err);
+  }
+};
 
-    this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
-      }
+export const createUser = async (user: Partial<GridUser>): Promise<GridUser> => {
+  try {
+    if (!user.firstName || !user.lastName || !user.email) {
+      throw new Error('Required fields are missing');
+    }
+    const storedData = getStoredData<GridUser>('users');
+    const newId = Math.max(0, ...storedData.map((u) => u.id)) + 1;
+    const newUser: GridUser = {
+      id: newId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role || 'User',
+      status: user.status || 'Active',
+    };
+    setStoredData('users', Array.isArray(storedData) ? [...storedData, newUser] : [newUser]);
+    return newUser;
+  } catch (err) {
+    throw handleError(err);
+  }
+};
+
+export const deleteUser = async (id: number): Promise<void> => {
+  try {
+    const storedData = getStoredData<GridUser>('users');
+    const userToDelete = storedData.find((u) => u.id === id);
+
+    if (!userToDelete) {
+      throw new Error('User not found');
+    }
+
+    setStoredData(
+      'users',
+      storedData.filter((u) => u.id !== id)
     );
+  } catch (err) {
+    throw handleError(err);
   }
+};
 
- 
-  async login(credentials: LoginCredentials): Promise<User> {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (credentials.username === "admin" && credentials.password === "admin") {
-        const user: User = {
-          username: credentials.username,
-          token: "simulated-jwt-token"
-        };
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("token", user.token);
-        return user;
-      }
-      throw new Error("Invalid credentials");
-    } catch (err) {
-      throw new Error(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+export const updateUser = async (user: GridUser): Promise<GridUser> => {
+  try {
+    const storedData = getStoredData<GridUser>('users');
+    const existingUser = storedData.find((u) => u.id === user.id);
+
+    if (!existingUser) {
+      throw new Error('User not found');
     }
+
+    const updatedData = storedData.map((u) => (u.id === user.id ? user : u));
+    setStoredData('users', updatedData);
+
+    return user;
+  } catch (err) {
+    throw handleError(err);
   }
-
-  async getPosts(): Promise<DataItem[]> {
-    try {
-      const storedData = this.getStoredData<DataItem>('posts');
-      if (storedData.length > 0) return storedData;
-
-      const { data } = await this.api.get<DataItem[]>('/posts');
-      const limitedData = data.slice(0, 10);
-      this.setStoredData('posts', limitedData);
-      return limitedData;
-    } catch (err) {
-      throw new Error(`Failed to fetch posts: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async createPost(post: Partial<DataItem>): Promise<DataItem> {
-    try {
-      const { data } = await this.api.post<DataItem>('/posts', post);
-      const storedData = this.getStoredData<DataItem>('posts');
-      const newPost = { ...data, id: Math.max(0, ...storedData.map(p => p.id)) + 1 };
-      this.setStoredData('posts', [...storedData, newPost]);
-      return newPost;
-    } catch (err) {
-      throw new Error(`Failed to create post: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async updatePost(post: DataItem): Promise<DataItem> {
-    try {
-      await this.api.put(`/posts/${post.id}`, post);
-      const storedData = this.getStoredData<DataItem>('posts');
-      const updatedData = storedData.map(p => p.id === post.id ? post : p);
-      this.setStoredData('posts', updatedData);
-      return post;
-    } catch (err) {
-      throw new Error(`Failed to update post: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async deletePost(id: number): Promise<void> {
-    try {
-      await this.api.delete(`/posts/${id}`);
-      const storedData = this.getStoredData<DataItem>('posts');
-      this.setStoredData('posts', storedData.filter(p => p.id !== id));
-    } catch (err) {
-      throw new Error(`Failed to delete post: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
- 
-  async getUsers(): Promise<GridUser[]> {
-    try {
-      const storedData = this.getStoredData<GridUser>('users');
-      if (storedData.length > 0) return storedData;
-      return this.getDefaultUsers();
-    } catch (err) {
-      throw new Error(`Failed to fetch users: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async createUser(user: Partial<GridUser>): Promise<GridUser> {
-    try {
-      const storedData = this.getStoredData<GridUser>('users');
-      const newUser: GridUser = {
-        id: Math.max(0, ...storedData.map(u => u.id)) + 1,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        role: user.role || 'User',
-        status: user.status || 'Active',
-      };
-      this.setStoredData('users', [...storedData, newUser]);
-      return newUser;
-    } catch (err) {
-      throw new Error(`Failed to create user: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async updateUser(user: GridUser): Promise<GridUser> {
-    try {
-      const storedData = this.getStoredData<GridUser>('users');
-      const updatedData = storedData.map(u => u.id === user.id ? user : u);
-      this.setStoredData('users', updatedData);
-      return user;
-    } catch (err) {
-      throw new Error(`Failed to update user: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-  async deleteUser(id: number): Promise<void> {
-    try {
-      const storedData = this.getStoredData<GridUser>('users');
-      this.setStoredData('users', storedData.filter(u => u.id !== id));
-    } catch (err) {
-      throw new Error(`Failed to delete user: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }
-
-
-  private getStoredData<T>(key: string): T[] {
-    const stored = localStorage.getItem(`app_${key}`);
-    return stored ? JSON.parse(stored) as T[] : [];
-  }
-
-  private setStoredData<T>(key: string, data: T[]): void {
-    localStorage.setItem(`app_${key}`, JSON.stringify(data));
-  }
-
-  private getDefaultUsers(): GridUser[] {
-    const defaultUsers: GridUser[] = [
-      {
-        id: 1,
-        firstName: "John",
-        lastName: "Doe",
-        email: "john@example.com",
-        role: "Admin",
-        status: "Active",
-      },
-      {
-        id: 2,
-        firstName: "Jane",
-        lastName: "Smith",
-        email: "jane@example.com",
-        role: "User",
-        status: "Active",
-      },
-      {
-        id: 3,
-        firstName: "Bob",
-        lastName: "Johnson",
-        email: "bob@example.com",
-        role: "Editor",
-        status: "Inactive",
-      },
-    ];
-    this.setStoredData('users', defaultUsers);
-    return defaultUsers;
-  }
-}
-
-export const apiService = new ApiService(); 
+};

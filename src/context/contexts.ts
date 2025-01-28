@@ -5,7 +5,7 @@ export const AuthContext = createContext<{
   user: User | null;
   login: (user: User) => void;
   logout: () => void;
-} | null>(null);
+}>({ user: null, login: () => {}, logout: () => {} });
 
 export const PostContext = createContext<PostContextType | undefined>(undefined);
-export const UserContext = createContext<UserContextType | undefined>(undefined); 
+export const UserContext = createContext<UserContextType | undefined>(undefined);

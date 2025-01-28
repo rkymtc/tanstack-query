@@ -22,6 +22,7 @@ export interface DataItem {
   title: string;
   body: string;
   userId: number;
+  content:string;
 }
 
 export interface ApiResponse<T> {
@@ -44,4 +45,10 @@ export interface UserContextType {
   handleDelete: (id: number) => void;
   handleAdd: (user: Partial<GridUser>) => void;
   isLoading: boolean;
+}
+export interface DataTableProps {
+  data: DataItem[];
+  onEdit: (item: DataItem) => void;
+  onDelete: (id: number) => void;
+  onAdd: (item: Partial<DataItem>) => void;
 }

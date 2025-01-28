@@ -2,14 +2,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { theme } from "./theme";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "./context/AuthContext";
-import { PostProvider } from "./context/PostContext";
 import { UserProvider } from "./context/UserContext";
-import Dashboard from "./pages/Dashboard";
-import DataGridPage from "./pages/DataGridPage";
-import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import DataGridPage from "./pages/DataGridPage/DataGridPage";
+import Login from "./pages/Login/Login";
 
 const queryClient = new QueryClient();
 
@@ -24,11 +24,9 @@ function App() {
             <Route
               path="/*"
               element={
-                <PostProvider>
-                  <UserProvider>
-                    <Layout />
-                  </UserProvider>
-                </PostProvider>
+                <UserProvider>
+                  <Layout />
+                </UserProvider>
               }
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
@@ -39,6 +37,7 @@ function App() {
           </Routes>
         </AuthProvider>
       </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }

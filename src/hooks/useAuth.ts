@@ -1,23 +1,23 @@
-import { useMutation } from "@tanstack/react-query";
-import { LoginCredentials, User } from "../types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoginCredentials } from "../types";
+import * as apiService from "../services/api";
+import { useContext } from "react";
+import { AuthContext } from "../context/contexts";
 
 export function useAuth() {
+  const queryClient = useQueryClient();
+  const { login } = useContext(AuthContext);
+
   const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginCredentials): Promise<User> => {
- 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (credentials.username === "admin" && credentials.password === "admin") {
-        const user: User = {
-          username: credentials.username,
-          token: "simulated-jwt-token"
-        };
-        localStorage.setItem("user", JSON.stringify(user));
-        return user;
-      }
-      throw new Error("Invalid credentials");
+    mutationFn: async (credentials: LoginCredentials) => {
+      const user = await apiService.login(credentials);
+      login(user);
+      return user;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["credentials"] });
     }
   });
 
   return loginMutation;
-} 
+}

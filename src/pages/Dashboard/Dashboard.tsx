@@ -1,8 +1,8 @@
 import {
   Box,
-  Container,
+
   Grid,
-  Paper,
+
   Typography,
   useTheme,
   CircularProgress,
@@ -13,80 +13,13 @@ import {
   Article as ArticleIcon,
   Edit as EditIcon,
 } from "@mui/icons-material";
-import { styled } from "@mui/material/styles";
-import { DataTable } from "../components/DataTable";
-import { useQuery } from "@tanstack/react-query";
-import { apiService } from "../services/api";
+import { DataTable } from "../../components/DataTable/DataTable";
+import { useApi } from "../../hooks/useApi";
 
-const StyledContainer = styled(Container)(({ theme }) => ({
-  paddingTop: theme.spacing(4),
-  paddingBottom: theme.spacing(4),
-  [theme.breakpoints.down("sm")]: {
-    paddingTop: theme.spacing(2),
-    paddingBottom: theme.spacing(2),
-  },
-}));
-
-const PageTitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(4),
-  fontWeight: 600,
-  color: theme.palette.text.primary,
-  [theme.breakpoints.down("sm")]: {
-    marginBottom: theme.spacing(2),
-    fontSize: "1.5rem",
-  },
-}));
-
-const StatsCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  display: "flex",
-  alignItems: "center",
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-  transition: "transform 0.2s, box-shadow 0.2s",
-  "&:hover": {
-    transform: "translateY(-4px)",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-  },
-}));
-
-const StatIcon = styled(Box)(({ theme }) => ({
-  width: 48,
-  height: 48,
-  borderRadius: theme.shape.borderRadius,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginRight: theme.spacing(2),
-  "& svg": {
-    fontSize: 24,
-    color: theme.palette.common.white,
-  },
-}));
-
-const StyledDataContainer = styled(Paper)(({ theme }) => ({
-  marginTop: theme.spacing(4),
-  padding: theme.spacing(3),
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-  [theme.breakpoints.down("sm")]: {
-    padding: theme.spacing(2),
-  },
-}));
-
-const LoadingContainer = styled(Box)({
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  height: "100%",
-});
+import {StyledContainer,LoadingContainer,StyledDataContainer,StatsCard,PageTitle,StatIcon} from "./styles"
 
 function Dashboard() {
-  const { data: posts = [], isLoading } = useQuery({
-    queryKey: ['posts'],
-    queryFn: () => apiService.getPosts()
-  });
-
+  const { posts, isLoading, updatePost, deletePost, addPost } = useApi();
   const theme = useTheme();
 
   const stats = [
@@ -116,10 +49,21 @@ function Dashboard() {
     },
   ];
 
+  const handleEdit = (post: any) => {
+    updatePost.mutate(post);
+  };
+
+  const handleDelete = (id: number) => {
+    deletePost.mutate(id);
+  };
+
+  const handleAdd = (post: Partial<any>) => {
+    addPost.mutate(post);
+  };
+
   return (
     <StyledContainer maxWidth="lg">
       <PageTitle variant="h4">Dashboard</PageTitle>
-
       <Grid container spacing={3}>
         {stats.map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
@@ -154,12 +98,13 @@ function Dashboard() {
         ) : (
           <DataTable
             data={posts}
-            onEdit={() => {}}
-            onDelete={() => {}}
-            onAdd={() => {}}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onAdd={handleAdd}
           />
         )}
       </StyledDataContainer>
+      
     </StyledContainer>
   );
 }
